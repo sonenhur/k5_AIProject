@@ -5,12 +5,16 @@ import socket
 
 import cv2
 import numpy as np
+from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename
 
 import easyocr
 
 app = Flask(__name__)
+
+# 환경 변수 로드
+load_dotenv()
 
 # 환경 변수 사용:
 UPLOAD_FOLDER = os.getenv(
@@ -26,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 UPLOAD_FOLDER = "/workspace_project/AIproject/workspace/received_images"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 MODEL_STORAGE_DIRECTORY = "/workspace_project/AIproject/workspace/user_network_dir"
-BLOCKED_CHARACTERS = "<>][+=|`@#$%^&;'굉}{"
+BLOCKED_CHARACTERS = "<\>][+=|`@#$%^&;'}{"
 
 # 폴더가 없는 경우 생성
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -88,12 +92,19 @@ def extract_text_from_image(
 # 날짜 추출
 def extract_date(texts):
     for text in texts:
+        # yyyy-mm-dd 형태 찾기
         match = re.search(r"\d{4}-\d{2}-\d{2}", text)
         match1 = re.search(r"\d{2}-\d{2}-\d{2}", text)
         if match:
             return match.group()
         elif match1:
             return match1.group()
+
+        # yyyymmdd 형태 찾기
+        match = re.search(r"\d{4}\d{2}\d{2}", text)
+        if match:
+            # 찾은 날짜를 yyyy-mm-dd 형태로 변환
+            return f"{match.group(0)[:4]}-{match.group(0)[4:6]}-{match.group(0)[6:8]}"
 
     return None
 
@@ -147,21 +158,20 @@ def process_item_line(line):
 # 숫자인지 확인 및 변환 로직
 def get_numeric_value(text):
     corrected_text = correct_ocr_mistakes(text)
+    # OCR 실수 교정 함수를 통해 텍스트를 수정
+    corrected_text = correct_ocr_mistakes(text)
+    # 쉼표를 제거하여 숫자만 있는 문자열 생성
+    corrected_text = corrected_text.replace(",", "")
+
     numeric_value = re.sub(r"[^\d.]", "", corrected_text)  # 숫자와 소수점만 남김
 
-    # Check for a valid float or integer string
+    # 숫자 변환 시도
     try:
-        # Attempt to convert to float if there is a period and it appears once
-        if numeric_value.count(".") == 1:
-            return float(numeric_value)
-        # Convert to int if there are no periods
-        elif "." not in numeric_value:
-            return int(numeric_value)
+        # 소수점이 포함되어 있는지 확인하고 적절히 변환
+        return float(corrected_text) if "." in corrected_text else int(corrected_text)
     except ValueError:
-        # Return 0 if conversion fails
-        pass
-
-    return 0  # Return 0 if the string is not a valid number
+        # 변환 실패 시 0 반환
+        return 0
 
 
 # 아이템 추출
@@ -170,104 +180,8 @@ def extract_items(texts):
     temp_items = []
     capture = False
 
-    start_keywords = [
-        "청구",
-        "온라인",
-        "품목",
-        "품명",
-        "수량",
-        "량",
-        "금액",
-        "수입",
-        "단가",
-        "단기",
-        "단 가",
-        "단가금액",
-        "수량",
-        "액",
-        "댁",
-        "ITEM",
-        "Item",
-        "PCS",
-        "Pcs",
-        "PRICE",
-        "Price",
-        "AMOUNT",
-        "quantity",
-        "price",
-        "얼마",
-        "총얼마",
-        "더하기",
-        "더 하",
-        "어떤거",
-        "몇 장",
-        "Total",
-        "name of product",
-        "STYLE",
-        "스타일",
-        "몇 개",
-    ]
-
-    end_keywords = [
-        "판매",
-        "판매소계",
-        "판매량",
-        "만매소계",
-        "만 매소계",
-        "민매소계",
-        "딴대 소계",
-        "딴매소계",
-        "반품",
-        "반품소계",
-        # "전잔",
-        "당일합계",
-        "당입합계",
-        "매입전잔",
-        "매입전잔:",
-        # "현금입금",
-        "당잔",
-        "당   잔:",
-        "부가세",
-        "확인후",
-        "별도",
-        "입금처",
-        "국민",
-        "국민은행",
-        "신한",
-        "신인:",
-        "신한은행",
-        "우리",
-        "우리은행",
-        "수협",
-        "신협",
-        "신 업",
-        "기업",
-        "기업은행",
-        "농협",
-        "TOTAL",
-        "Total",
-        "Tatal",
-        "경우는",
-        "두시기",
-        "샌플반날",
-        "세금계산서는",
-        "세급계산시",
-        "발행일",
-        "미민닐시",
-        "좋근",
-        "거듭해주서서_항상",
-        "까지만",
-        "월변하일마감",
-        "자료는",
-        "01()3180",
-        "21508622790622",
-        "칭고되니다",
-        "전달 부기세",
-        "심플반남은",
-        "모든 삼품",
-        "(전자발행",
-        "*주 소창에",
-    ]
+    start_keywords = os.getenv("START_KEYWORDS").split(",")
+    end_keywords = os.getenv("END_KEYWORDS").split(",")
 
     for text in texts:
         if any(keyword in text for keyword in start_keywords):
@@ -317,49 +231,16 @@ def extract_items(texts):
 
 
 # 회사 이름 추출
+company_identifiers = os.getenv("COMPANY_IDENTIFIERS").split(",")
+
+
 def extract_company_name(texts):
     priority_keywords = ["HP", "청평화"]  # 우선 순위가 높은 순으로 정렬
     company_name = None  # 초기 회사 이름은 없음으로 설정
 
     for text in texts:
         # 가게 이름이 될 수 있는 텍스트를 찾기
-        if (
-            "청평화" in text
-            or "청명화시장" in text
-            or "청평화상가" in text
-            or "선평회" in text
-            or "Ciitilg FyungHia" in text
-            or "Cheong PyungHwa" in text
-            or "누죤" in text
-            or "누준" in text
-            or "누촌" in text
-            or "디오트" in text
-            or "나오트" in text
-            or "더오" in text
-            or "APM LUXE" in text
-            or "테I 그노" in text
-            or "테크노" in text
-            or "DMP 1F" in text
-            or "지하" in text
-            or "1층" in text
-            or "2층" in text
-            or "3층" in text
-            or "4층" in text
-            or "5층" in text
-            or "TEL" in text
-            or "전화" in text
-            or "선화" in text
-            or "선회" in text
-            or "신회" in text
-            or "따르릉" in text
-            or "따로름" in text
-            or "HP" in text
-            or "H.P" in text
-            or "Studio" in text
-            or "스튜디오" in text
-            or "서률 숨구 신당동" in text
-            or "(02)" in text
-        ):
+        if any(company_id in text for company_id in company_identifiers):
             if company_name:
                 return company_name
             else:
@@ -373,9 +254,6 @@ def extract_company_name(texts):
     if company_name:
         # 필터링 규칙 정의
         filters = {
-            "oH": "애",
-            "IF": "1F",
-            "3충": "3층",
             # 추가 필터링 규칙은 여기에 정의
         }
 
@@ -391,22 +269,70 @@ def apply_text_filters(text_list):
     filters = {
         "oH": "애",
         "광바패년 올": "광희패션몰",
+        "뜨월": "프릴",
+        "g6PLACE": "96PLACE",
+        "아 N 길": "아 사 렐",
+        "얼로무미": "얼로우미",
+        "( , 기신)": "(슈기신)",
+        "커민( 그레이)": "커먼(그레이)",
+        "그럴t루": "그랑블루",
+        "CP.u": "C.P.U",
+        "CP.U": "C.P.U",
+        "CPu": "C.P.U",
+        "safl": "Sam",
+        "( 신스)": "(샘스)",
+        "오렌지t": "오렌지붐",
+        "오렌지붕": "오렌지붐",
+        "오렌지봄": "오렌지붐",
+        "엘종타FI)": "엘핀(ELFIN)",
+        "끌리다": "끌리지",
+        "하피스토리": "히피스토리",
+        "Galdstar": "Goldstar",
         "(수. 단 가": "수량 단가",
         "따로름": "따르릉",
+        "더 하": "더하기",
         "더 하 기": "더하기",
         "1 딴   거": "어떤거",
         "열마": "얼마",
         "청평하가": "청평화상가",
+        "디오 1중": "디오트 1층",
+        "급액": "금액",
         "금   액": "금액",
+        "금약": "금액",
         "품   목": "품목",
         "20 22.": "2022.",
         '6"29 .': "6.29",
         "스 튜디오": "스튜디오",
         "덕분입다다": "덕분입니다",
         "!층": "1층",
+        "22씹머": "22썸머",
+        "망고버기/ 가IF": "망고배기/ 가/F",
+        "청평화 3충": "청평화 3층",
         "신 협": "신협",
         "AMOUiyT": "AMOUNT",
         "레 n인나시": "레 드임나시",
+        "굉배기": "핑배기",
+        "비비표켓베기그이8": "비비포켓배기/그레이/",
+        "/청/씨": "/청/M",
+        "메이서니씨크림": "메이셔츠JK/크림",
+        "메이서츠카키": "메이셔츠JK/카키",
+        "메U가K": "메이JK",
+        "한스씨검점": "한스Jk검정",
+        "한스j보카베이지": "한스Jk보카베이지",
+        "베리고세티": "베리굿세트",
+        "베리 군세티": "베리굿세트",
+        "불루징": "블루징",
+        "실린통": "셀린통",
+        "이이런통": "이이린통",
+        "면부춧컷": "면부츠컷",
+        "컬리포니아세트": "캘리포니아세트",
+        "캠거루다": "캥거루SK",
+        "머스트치다바다": "머스트치마바지",
+        "622주드": "622후드",
+        "불래/FR": "블랙/FR",
+        "봄몸부초컷": "봄몸부츠컷",
+        "위이봉리": "아이보리",
+        "바바라물리우스": "바바라블라우스",
         "신환은행": "신한은행",
         "FCs": "PCS",
         "야트 프라자 ! 층": "아트 프라자 1층",
@@ -417,19 +343,92 @@ def apply_text_filters(text_list):
         "BCDG": "BC BG",
         "아년_": "BL",
         "IIC": "114",
+        "PB64IM": "BB64/M",
+        "BG64/L": "BB64/L",
+        "6863/N": "BB63/M",
+        "BBGG/L": "BB66/L",
+        "BL5Og": "BL509",
+        "12 UUIU": "12000",
+        "12 UUI": "12000",
+        "4g OulU": "48000",
         "Totol": "Total",
         "니 곰": "니 콤",
-        "0-": "0000",
-        "1-": "1000",
-        "2-": "2000",
-        "3-": "3000",
-        "4-": "4000",
-        "5-": "5000",
-        "6-": "6000",
-        "7-": "7000",
-        "8-": "8000",
-        "9-": "9000",
+        "마시델로": "마시멜로",
+        "마시밀로": "마시멜로",
+        "디디(D)": "디디(DD)",
+        "mrghmallo": "marshmallow",
+        "(marahmallo)": "(marshmallow)",
+        "(marghmmallo)": "(marshmallow)",
+        "marsmmallo": "marshmallow",
+        "타임컷팅반팔다": "타임컷팅반팔T",
+        "연카키)F": "연카키/F",
+        "네I이비": "네이비",
+        "규크 )": "뀨크 J",
+        "끄섭머)": "22썸머)",
+        "면부초켓": "면부츠컷",
+        "X국크- 크장 스본": "X규크 J -1장 수본",
+        "마인소매터붙라우스": "마인소매턱블라우스",
+        "마인소매터불라무스": "마인소매턱블라우스",
+        "마인소매터물리우스": "마인소매턱블라우스",
+        "가중레이스소매블라우식블렉": "이중레이스소매블라우스/블랙",
+        "예립공장": "예림공장",
+        # "0-": "0000",
+        # "1-": "1000",
+        # "2-": "2000",
+        # "3-": "3000",
+        # "4-": "4000",
+        # "5-": "5000",
+        # "6-": "6000",
+        # "7-": "7000",
+        # "8-": "8000",
+        # "9-": "9000",
+        "0OO": "000",
+        "O0O": "000",
+        "00O": "000",
+        "O00": "000",
+        "0O0": "000",
+        "0oo": "000",
+        "o0o": "000",
+        "00o": "000",
+        "o00": "000",
+        "0o0": "000",
+        "O0o": "000",
+        "OOO": "000",
+        "* 숲 4 쇼": "****",
+        "10 ,": "10,000",
         "20n2~": "30,000",
+        '"2C,000"': "20,000",
+        ",0OU": ",000",
+        "40, OuO": "40,000",
+        "27,rOO": "27,000",
+        "27,JU": "27,000",
+        ",0DO": "27,000",
+        ",OOO": ",000",
+        "OO0": ",000",
+        ",OOO": ",000",
+        "2D근근-0415": "2022-04-15",
+        "2022-04 ! 4": "2022-04-14",
+        "202-04-13": "2022-04-13",
+        "2022-U6-21": "2022-06-21",
+        "단 가": "단가",
+        "만매소계": "판매소계",
+        "만 매소계": "판매소계",
+        "민매소계": "판매소계",
+        "딴대 소계": "판매소계",
+        "딴매소계": "판매소계",
+        "당입합계": "당일합계",
+        "거대처명": "거래처명",
+        "신 업": "신협",
+        "Tatal": "Total",
+        "/BLIF": "/BL/F",
+        "/GYIF": "/GY/F",
+        "세급계산시": "세금계산시",
+        "*주 소창에": "주소창에",
+        "원치않으시논": "원치않으시는",
+        "바람니다": "바랍니다",
+        "(*주이내 미반밥시": "(*3주이내 미반납시",
+        "합다 다*": "합니다*",
+        "낮아이색상은교환 , 반둥붙가입니다! !": "*아이색상은교환,반품불가입니다!!",
         # 추가 필터링 규칙은 여기에 정의
     }
     filtered_texts = []
@@ -456,6 +455,9 @@ def get_photo_input():
             return jsonify({"error": "이미지에서 텍스트를 찾을 수 없습니다."}), 400
 
         texts = [entry["text"] for entry in extracted_data]
+
+        # 날짜 추출
+        date = extract_date(texts)  # 필터링 적용 전에 날짜 추출
 
         # 필터링 적용
         filtered_texts = apply_text_filters(texts)

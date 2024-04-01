@@ -119,7 +119,8 @@ def correct_ocr_mistakes(text):
         "D": "0",
         " ": "",
         ",": "",
-        ".": ".",
+        ".": "",
+        "-": "000",
         "_": "000",
     }
     corrected_text = "".join(corrections.get(char, char) for char in text)

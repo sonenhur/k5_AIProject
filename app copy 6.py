@@ -53,7 +53,7 @@ def preprocess_image(image_path):
 
 # 이미지에서 텍스트 추출
 def extract_text_from_image(
-    image_path, filename, use_custom_model=False, languages=["ko"]
+    image_path, filename, use_custom_model=True, languages=["ko"]
 ):
     model_storage_directory = os.path.abspath(MODEL_STORAGE_DIRECTORY)
     user_network_directory = os.path.abspath(MODEL_STORAGE_DIRECTORY)

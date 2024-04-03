@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 UPLOAD_FOLDER = "/workspace_project/AIproject/workspace/received_images"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 MODEL_STORAGE_DIRECTORY = "/workspace_project/AIproject/workspace/user_network_dir"
-BLOCKED_CHARACTERS = "<\>][+=|`@#$%^&;'}{"
+BLOCKED_CHARACTERS = "<\>][+=|`@#$%^&;'}{\""
 
 # 폴더가 없는 경우 생성
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -53,7 +53,7 @@ def preprocess_image(image_path):
 
 # 이미지에서 텍스트 추출
 def extract_text_from_image(
-    image_path, filename, use_custom_model=True, languages=["ko"]
+    image_path, filename, use_custom_model=False, languages=["ko"]
 ):
     model_storage_directory = os.path.abspath(MODEL_STORAGE_DIRECTORY)
     user_network_directory = os.path.abspath(MODEL_STORAGE_DIRECTORY)
@@ -139,7 +139,7 @@ def extract_numbers(text):
 # 아이템 라인 처리
 def process_item_line(line):
     parts = re.split(r"\s+", line.strip())
-    item_data = {"item": "", "unitPrice": 0, "quantity": 0, "price": 0}
+    item_data = {"item": "", "quantity": 0, "unitPrice": 0, "price": 0}
 
     if parts:
         item_data["item"] = parts[0]  # 첫 부분을 상품명으로 가정
@@ -148,8 +148,8 @@ def process_item_line(line):
             extract_numbers(part) for part in parts[1:]
         ]  # 첫 부분을 제외한 나머지에서 숫자 추출
 
-        if len(numbers) >= 3:  # 가격, 수량, 단가 순으로 가정
-            item_data["price"], item_data["quantity"], item_data["unitPrice"] = numbers[
+        if len(numbers) >= 3:
+            item_data["quantity"], item_data["unitPrice"], item_data["price"] = numbers[
                 :3
             ]
 
@@ -197,7 +197,7 @@ def extract_items(texts):
             temp_items.append(text.strip())
 
     # 아이템 데이터 처리
-    item_set = {"item": "", "unitPrice": 0, "quantity": 0, "price": 0}
+    item_set = {"item": "", "quantity": 0, "unitPrice": 0, "price": 0}
     item_index = 0
     for text in temp_items:
         if item_index == 0:  # 아이템 이름
@@ -207,21 +207,21 @@ def extract_items(texts):
             numeric_value = get_numeric_value(text)
             if isinstance(numeric_value, (int, float)):
                 if item_index == 1:
-                    item_set["unitPrice"] = numeric_value
-                elif item_index == 2:
                     item_set["quantity"] = numeric_value
+                elif item_index == 2:
+                    item_set["unitPrice"] = numeric_value
                 elif item_index == 3:
                     item_set["price"] = numeric_value
                 item_index += 1
             else:
                 # 숫자가 아닌 값은 다음 세트로 이동
                 items.append(item_set)
-                item_set = {"item": text, "unitPrice": 0, "quantity": 0, "price": 0}
+                item_set = {"item": text, "quantity": 0, "unitPrice": 0, "price": 0}
                 item_index = 1
 
         if item_index > 3:
             items.append(item_set)
-            item_set = {"item": "", "unitPrice": 0, "quantity": 0, "price": 0}
+            item_set = {"item": "", "quantity": 0, "unitPrice": 0, "price": 0}
             item_index = 0
 
     # 마지막 아이템 처리
@@ -265,60 +265,20 @@ def extract_company_name(texts):
     return company_name or "(가게 이름)"  # 회사 이름을 찾을 수 없을 경우 기본값 반환
 
 
+# 필터 규칙을 환경 변수에서 불러오기
+def load_filters():
+    filters = {}
+    for key in os.environ:
+        if key.startswith("FILTER_RULE_"):
+            rule = os.environ[key]
+            source, target = rule.split("=")
+            filters[source] = target
+    return filters
+
+
 # 필터링 함수 정의
 def apply_text_filters(text_list):
-    filters = {
-        "광바패년 올": "광희패션몰",
-        "뜨월": "프릴",
-        "g6PLACE": "96PLACE",
-        "아 N 길": "아 사 렐",
-        "얼로무미": "얼로우미",
-        "그럴t루": "그랑블루",
-        "CP.u": "C.P.U",
-        "CP.U": "C.P.U",
-        "CPu": "C.P.U",
-        "safl": "Sam",
-        "( 신스)": "(샘스)",
-        "오렌지붕": "오렌지붐",
-        "오렌지봄": "오렌지붐",
-        "Galdstar": "Goldstar",
-        "청평하가": "청평화상가",
-        "덕분입다다": "덕분입니다",
-        "mrghmallo": "marshmallow",
-        "(marahmallo)": "(marshmallow)",
-        "(marghmmallo)": "(marshmallow)",
-        "marsmmallo": "marshmallow",
-        "야트 프라자 ! 층": "아트 프라자 1층",
-        "만매소계": "판매소계",
-        "만 매소계": "판매소계",
-        "민매소계": "판매소계",
-        "딴대 소계": "판매소계",
-        "딴매소계": "판매소계",
-        "당입합계": "당일합계",
-        "거대처명": "거래처명",
-        "신 업": "신협",
-        "신환은행": "신한은행",
-        "0OO": "000",
-        "O0O": "000",
-        "00O": "000",
-        "O00": "000",
-        "0O0": "000",
-        "0oo": "000",
-        "o0o": "000",
-        "00o": "000",
-        "o00": "000",
-        "0o0": "000",
-        "O0o": "000",
-        "OOO": "000",
-        ",0OU": ",000",
-        ",OuO": ",000",
-        ",rOO": ",000",
-        ",0DO": ",000",
-        ",OOO": ",000",
-        "OO0": ",000",
-        ",OOO": ",000",
-        # 추가 필터링 규칙은 여기에 정의
-    }
+    filters = load_filters()
     filtered_texts = []
     for text in text_list:
         for key, value in filters.items():

@@ -4,7 +4,6 @@ import re
 import socket
 
 import cv2
-import numpy as np
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory, url_for
 from werkzeug.utils import secure_filename

@@ -24,7 +24,7 @@
   - NONE-VGG-BiLSTM-CTC 구조 사용
   - 과적합 문제에 주의
   - 글자단위 test에서 best accuracy 93.51%
-  - 수기 영수증 파일 best accuracy 74.99%)
+  - 수기 영수증 파일 best accuracy 74.99%
 - Flask API 설계
   - /image/upload : 클라이언트가 업로드한 이미지를 EXTRACT_TEXT_FROM_IMAGE 함수로 전달
   - /image/(filename) : 작업 완료된 이미지를 클라이언트에게 반환

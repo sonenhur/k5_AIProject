@@ -23,12 +23,12 @@
 - OCR 모델 학습
   - NONE-VGG-BiLSTM-CTC 구조 사용
   - 과적합 문제에 주의
-  - 글자단위 test에서 best accuracy 93.51%
+  - 글자 단위 TEST best accuracy 93.51%
   - 수기 영수증 파일 best accuracy 74.99%
 - Flask API 설계
-  - /image/upload : 클라이언트가 업로드한 이미지를 EXTRACT_TEXT_FROM_IMAGE 함수로 전달
+  - /image/upload : 업로드한 이미지를 EXTRACT_TEXT_FROM_IMAGE 함수로 전달
   - /image/(filename) : 작업 완료된 이미지를 클라이언트에게 반환
 - 텍스트 정제 및 구조화
-   - OCR 실수 교정 : 숫자 0,1과 알파벳 o,l를 혼동하는 문제를 해결하기 위한 함수 생성
-   - 정규 표현식을 사용해서 날짜 추출
+   - OCR 교정 : 숫자 0,1과 알파벳 o,l를 혼동하는 문제를 해결하기 위한 함수 생성
+   - 정규 표현식을 사용해서 규격화된 날짜 형식 추출
    - 환경변수에서 정의한 필터링 규칙을 적용해서 DB화에 불필요한 부분 제거

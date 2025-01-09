@@ -51,17 +51,29 @@
 4. 양식을 벗어난 글자 인식.
 5. **OCR 및 YOLO** 활용: 필기체 텍스트 인식.
 6. 인식된 텍스트 DB 저장.
-7. DB 저장 데이터 검색 및 분석 제공.
-
+7. DB 저장 데이터 검색 및 분석 제공
 ---
-
 ## 팀 구성원별 작업 내용
 - **FE**: 문형호
 - **BE**: 이지연
 - **DA**: 허선행
 ![담당내용](https://github.com/user-attachments/assets/c69c615b-923b-4834-ae7f-d96571efa84d)
 
----
+#### 영수증 업로드
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c8513bda-3f8a-4627-a19d-0bc04205185b" alt="2 영수증 업로드">
+</p>
+
+#### 내용 수정 및 저장
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7691e743-b0d8-4bcd-b054-af55e1c537c1" alt="3 인식내용 수정 후 저장">
+</p>
+
+#### 엑셀파일 저장
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/973ed37a-34d9-43ab-95aa-e7f7bd66633f" alt="7 엑셀 파일로 저장">
+</p>
+
 
 ## 추진 일정 경과
 - **2024-02-28 ~ 2024-04-04**
@@ -95,5 +107,5 @@
 ---
 
 ## 참고 자료
-- 프로젝트 관련 참고 자료 목록.
+- 프로젝트 관련 참고 자료 목록 (작성 시 추가).
 ![참고자료](https://github.com/user-attachments/assets/ed598933-1e2e-46bd-af94-f453dc549740)
